@@ -192,3 +192,55 @@ oil_archives = get_nyt_archives(params=params_archives_nyt, year=2020,
 
 retail_archives = get_nyt_archives(
     params=params_archives_nyt, year=2020, start_mth=1, end_mth=3, subject="Shopping and Retail")  # location="New York City"
+
+
+# GUARDIAN
+
+params_guardian = {
+    'api-key': '61f837c5-ab25-4cc6-887d-654b95d93d34'
+}
+
+
+def get_guardian(params, subject='oil'):
+
+    df_out = pd.DataFrame()
+
+    if subject == 'oil':
+        url_base = 'http://content.guardianapis.com/business/oilandgascompanies?'
+    elif subject == 'retail':
+        url_base = 'http://content.guardianapis.com/business/retails?'
+
+    try:
+        response = requests.get(url_base, params=params)
+        response.raise_for_status()
+
+        num_pages = response.json()['response']['pages']
+        n_pag = min(num_pages, 500)
+
+        for page in range(1, num_pages+1):
+            res = requests.get(url_base, params=params)
+
+            if response.status_code == 200:
+                print(f'Processing page {page}')
+                json_res = res.json()
+                article_dataFrame = pd.DataFrame(json_res['articles'])
+
+                # get source name and assign source api to newsapi
+                article_dataFrame['source_name'] = article_dataFrame['source'].apply(
+                    lambda x: x['name'])
+                article_dataFrame['source_api'] = 'newsapi'
+
+                # only take relevant columns
+                article_dataFrame = article_dataFrame[[
+                    'source_name', 'source_api', 'title', 'publishedAt']]
+                df_out = pd.concat([df_out, article_dataFrame])
+
+            else:
+                print('Error:', response.status_code)
+
+            time.sleep(random.random() * random.randint(1, 2))
+
+    except requests.exceptions.HTTPError as err:
+        print(err)
+
+    return(df_out)
